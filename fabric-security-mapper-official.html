@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fabric Security Group Mapper</title>
+
+  <!-- Bootstrap 5 + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body {
+      background:
+        radial-gradient(1200px circle at 10% 10%, rgba(13,110,253,.12), transparent 55%),
+        radial-gradient(900px circle at 90% 20%, rgba(111,66,193,.12), transparent 45%),
+        radial-gradient(1000px circle at 50% 100%, rgba(25,135,84,.10), transparent 50%);
+      min-height: 100vh;
+    }
+    .glass { backdrop-filter: blur(10px); background: rgba(255,255,255,.82); border: 1px solid rgba(255,255,255,.55); }
+    .shadow-soft { box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .badge-soft { background: rgba(13,110,253,.10); color: #0d6efd; border: 1px solid rgba(13,110,253,.25); }
+    .small-muted { font-size: .92rem; color: rgba(0,0,0,.60); }
+    .pointer { cursor: pointer; }
+    .table thead th { position: sticky; top: 0; background: rgba(255,255,255,.95); }
+    .table-responsive { max-height: 460px; }
+    .dropzone {
+      border: 2px dashed rgba(13,110,253,.35);
+      background: rgba(13,110,253,.04);
+      border-radius: 16px;
+      padding: 14px;
+      transition: .15s ease;
+    }
+    .dropzone.dragover {
+      border-color: rgba(13,110,253,.75);
+      background: rgba(13,110,253,.08);
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar py-3">
+    <div class="container">
+      <span class="navbar-brand fw-bold">
+        <i class="bi bi-shield-lock-fill text-primary me-2"></i>
+        Fabric Security Group Mapper
+      </span>
+      <div class="ms-auto d-flex gap-2 align-items-center">
+        <span class="badge rounded-pill badge-soft"><i class="bi bi-diagram-3 me-1"></i>Stream × Role × Envs</span>
+        <button class="btn btn-outline-dark btn-sm" id="btnExportCsv" title="Export current mapping to CSV">
+          <i class="bi bi-download me-1"></i>Export CSV
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container pb-5">
+    <div class="row g-4">
+      <!-- Left column: Add/Edit + Import + Rules -->
+      <div class="col-lg-4">
+        <div class="card glass shadow-soft border-0">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <h5 class="fw-semibold mb-0"><i class="bi bi-person-plus-fill me-2"></i>Add / Edit person</h5>
+              <span class="badge text-bg-light border" id="modeBadge">Add</span>
+            </div>
+            <div class="small-muted mb-3">Fill Stream, Project Role, Name, environments. Groups and Fabric roles are computed per environment.</div>
+
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">Stream</label>
+                <input id="inpStream" class="form-control text-uppercase" placeholder="e.g., IBP, RGM, CORP">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Project Role</label>
+                <select id="inpRole" class="form-select">
+                  <option value="DE">DE (Data Engineer)</option>
+                  <option value="BI">BI (Business Intelligence)</option>
+                  <option value="AI">AI (Artificial Intelligence)</option>
+                  <option value="PM">PM (Project Manager)</option>
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="UX">UX</option>
+                  <option value="OTHER">OTHER</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Name</label>
+                <input id="inpName" class="form-control" placeholder="e.g., John Doe">
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-semibold">Environments</label>
+                <div class="d-flex flex-wrap gap-2">
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="envDEV" checked>
+                    <label class="form-check-label mono" for="envDEV">DEV</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="envTEST">
+                    <label class="form-check-label mono" for="envTEST">TEST</label>
+                  </div>
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="envPROD">
+                    <label class="form-check-label mono" for="envPROD">PROD</label>
+                  </div>
+                </div>
+                <div class="form-text">Select where this person should have access.</div>
+              </div>
+
+              <div class="col-12">
+                <div class="p-3 rounded-4 bg-white bg-opacity-50 border">
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                      <div class="fw-semibold">Generated Security Groups</div>
+                      <div class="small-muted mono">SG-{STREAM}-{ROLE}-{ENV}</div>
+                    </div>
+                    <div class="mono text-primary" id="generatedGroups">—</div>
+                  </div>
+                  <hr class="my-3">
+                  <label class="form-label fw-semibold">Advanced override groups</label>
+                  <input id="inpOverrideGroups" class="form-control mono" placeholder="Optional. e.g. SG-IBP-DE-DEV; SG-IBP-DE-PROD">
+                  <div class="form-text">
+                    If provided, overrides generated groups. Use semicolon-separated list. Useful for exceptions or legacy names.
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-12 d-grid gap-2">
+                <button class="btn btn-primary" id="btnSave"><i class="bi bi-check2-circle me-1"></i>Save</button>
+                <button class="btn btn-outline-secondary" id="btnClear"><i class="bi bi-x-circle me-1"></i>Clear</button>
+                <button class="btn btn-outline-danger" id="btnDelete" disabled><i class="bi bi-trash3 me-1"></i>Delete selected</button>
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h6 class="fw-semibold mb-2"><i class="bi bi-filetype-csv me-2"></i>Load CSV (UTF-8)</h6>
+            <div class="small-muted mb-2">
+              Columns: <span class="mono">Stream</span>, <span class="mono">Project Role</span> (or Role), <span class="mono">Name</span>,
+              optional <span class="mono">Environments</span> (DEV;TEST;PROD),
+              optional <span class="mono">Security Groups</span> (semicolon-separated override).
+            </div>
+
+            <div id="dropzone" class="dropzone mb-2">
+              <div class="d-flex gap-2 align-items-start">
+                <i class="bi bi-cloud-arrow-up-fill text-primary fs-5"></i>
+                <div>
+                  <div class="fw-semibold">Drag & drop your CSV here</div>
+                  <div class="small-muted">…or choose a file below.</div>
+                </div>
+              </div>
+            </div>
+            <input class="form-control" type="file" id="fileCsv" accept=".csv,text/csv"/>
+
+            <hr class="my-4">
+
+            <h6 class="fw-semibold"><i class="bi bi-sliders me-2"></i>Rules</h6>
+
+            <div class="p-3 rounded-4 bg-white bg-opacity-50 border">
+              <div class="fw-semibold mb-2">Rule: PROD is Viewer (non-admin)</div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="ruleProdViewerNonAdmin" checked>
+                <label class="form-check-label" for="ruleProdViewerNonAdmin">
+                  If PROD selected → set <span class="fw-semibold">all non-admin roles</span> as <span class="fw-semibold">Viewer (PROD)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-4 bg-white bg-opacity-50 border mt-3">
+              <div class="fw-semibold mb-2">Rule: CORP + ADMIN</div>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="ruleCorpAdminAllWs" checked>
+                <label class="form-check-label" for="ruleCorpAdminAllWs">
+                  Mark CORP ADMIN as <span class="fw-semibold">Admin (All workspaces)</span> per selected environment
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column: Table + Explanation + Matrix -->
+      <div class="col-lg-8">
+        <div class="card glass shadow-soft border-0">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+              <div>
+                <h5 class="fw-semibold mb-1"><i class="bi bi-table me-2"></i>People → Security Groups</h5>
+                <div class="small-muted">Click a row to edit.</div>
+              </div>
+              <div class="input-group" style="max-width: 360px;">
+                <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
+                <input class="form-control" id="search" placeholder="Search stream / role / name / group...">
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0" id="tbl">
+                <thead>
+                  <tr>
+                    <th style="width: 6%;">#</th>
+                    <th style="width: 12%;">Stream</th>
+                    <th style="width: 14%;">Project Role</th>
+                    <th style="width: 20%;">Name</th>
+                    <th style="width: 16%;">Environments</th>
+                    <th>Security Groups</th>
+                    <th style="width: 18%;">Fabric Roles</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+              <div class="small-muted">Selected: <span class="mono" id="selLabel">None</span></div>
+              <div class="small-muted">Rows: <span class="mono" id="rowCount">0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card glass shadow-soft border-0 mt-4">
+          <div class="card-body p-4">
+            <h5 class="fw-semibold mb-2"><i class="bi bi-person-lines-fill me-2"></i>Person explanation</h5>
+            <div class="small-muted mb-3">Why this person is assigned to these groups and what it implies in Fabric.</div>
+
+            <div class="row g-3">
+              <div class="col-lg-6">
+                <div class="p-3 rounded-4 bg-white bg-opacity-50 border">
+                  <div class="fw-semibold mb-1">Selected</div>
+                  <div id="exPerson" class="mono">None selected</div>
+                  <div id="exWhy" class="small-muted mt-2"></div>
+                </div>
+              </div>
+              <div class="col-lg-6">
+                <div class="p-3 rounded-4 bg-white bg-opacity-50 border">
+                  <div class="fw-semibold mb-1">Group justification</div>
+                  <div id="exGroups" class="mono">—</div>
+                  <div id="exGroupWhy" class="small-muted mt-2"></div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="p-3 rounded-4 bg-white bg-opacity-50 border">
+              <div class="fw-semibold mb-2"><i class="bi bi-info-circle me-2"></i>Helper</div>
+              <div class="small-muted">
+                <div class="fw-semibold mb-1">Naming convention</div>
+                <div class="mono mb-2">SG-{STREAM}-{ROLE}-{ENV}</div>
+                <ul class="mb-0">
+                  <li><span class="fw-semibold">Least privilege:</span> grant only what’s required.</li>
+                  <li><span class="fw-semibold">Stream isolation:</span> avoid cross-domain access.</li>
+                  <li><span class="fw-semibold">Environment safety:</span> DEV/TEST build, PROD is protected.</li>
+                  <li><span class="fw-semibold">Auditable:</span> membership reviews happen on groups, not individuals.</li>
+                </ul>
+              </div>
+
+              <hr class="my-3">
+              <div class="fw-semibold mb-2"><i class="bi bi-person-badge me-2"></i>Fabric role justification</div>
+              <div class="small-muted">
+                This app computes <span class="fw-semibold">workspace roles per environment</span> to guide Fabric workspace assignment:
+                <ul class="mb-0 mt-2">
+                  <li><span class="fw-semibold">Contributor (DEV/TEST)</span>: build and iterate (pipelines, notebooks, reports).</li>
+                  <li><span class="fw-semibold">Viewer (PROD)</span>: read-only to reduce accidental production changes (non-admin).</li>
+                  <li><span class="fw-semibold">Admin</span>: manage workspace settings and permissions (high risk; keep membership small).</li>
+                  <li><span class="fw-semibold">Admin (All workspaces)</span>: special case for <span class="mono">CORP + ADMIN</span> when enabled.</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toasts -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+      <div id="toastDuplicate" class="toast align-items-center text-bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            Duplicate detected. Updated the existing entry instead of creating a new one.
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+
+      <div id="toastImported" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="polite" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body">
+            CSV loaded successfully.
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // ----------------------------
+    // Data model
+    // ----------------------------
+    let people = []; // starts empty
+    let selectedIndex = -1;
+    const ALL_ENVS = ["DEV","TEST","PROD"];
+
+    function escapeHtml(str){
+      return (str || "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;");
+    }
+
+    function normalizeEnvs(envs){
+      const set = new Set((envs || []).map(e => (e || "").trim().toUpperCase()).filter(Boolean));
+      if (set.size === 0) set.add("DEV");
+      return ALL_ENVS.filter(e => set.has(e));
+    }
+
+    function getSelectedEnvsFromForm(){
+      const envs = [];
+      if (document.getElementById("envDEV").checked) envs.push("DEV");
+      if (document.getElementById("envTEST").checked) envs.push("TEST");
+      if (document.getElementById("envPROD").checked) envs.push("PROD");
+      return normalizeEnvs(envs);
+    }
+
+    function suggestGroups(stream, role, envs){
+      const s = (stream || "").trim().toUpperCase() || "STREAM";
+      const r = (role || "").trim().toUpperCase() || "ROLE";
+      const e = normalizeEnvs(envs);
+      return e.map(x => `SG-${s}-${r}-${x}`);
+    }
+
+    // Advanced overrides (semicolon-separated) override generated
+    function getGroupsForPerson(p){
+      const override = (p.overrideGroups || "").trim();
+      if (override) {
+        return override.split(/[;]+/).map(s => s.trim()).filter(Boolean);
+      }
+      return suggestGroups(p.stream, p.role, p.envs);
+    }
+
+    function baseWorkspaceRole(role){
+      if (role === "ADMIN") return "Admin";
+      if (role === "PM") return "Member";
+      return "Contributor";
+    }
+
+    // Returns list like ["Contributor (DEV)", "Contributor (TEST)", "Viewer (PROD)"]
+    function fabricRolesForPerson(p){
+      const role = (p.role || "").trim().toUpperCase();
+      const envs = normalizeEnvs(p.envs);
+      const prodViewerNonAdmin = document.getElementById("ruleProdViewerNonAdmin").checked;
+      const corpAdminAllWs = document.getElementById("ruleCorpAdminAllWs").checked;
+      const stream = (p.stream || "").trim().toUpperCase();
+
+      if (corpAdminAllWs && stream === "CORP" && role === "ADMIN"){
+        return envs.map(e => `Admin (All workspaces) (${e})`);
+      }
+
+      return envs.map(e => {
+        if (prodViewerNonAdmin && e === "PROD" && role !== "ADMIN"){
+          return "Viewer (PROD)";
+        }
+        const base = baseWorkspaceRole(role);
+        return `${base} (${e})`;
+      });
+    }
+
+    function renderEnvBadges(envs){
+      return normalizeEnvs(envs).map(e => `<span class="badge text-bg-light border mono">${e}</span>`).join("");
+    }
+
+    function renderGroupBadges(groups){
+      return groups.map(g => `<span class="badge rounded-pill badge-soft mono">${escapeHtml(g)}</span>`).join(" ");
+    }
+
+    function renderRoleBadges(roles){
+      return roles.map(r => `<span class="badge text-bg-light border mono">${escapeHtml(r)}</span>`).join(" ");
+    }
+
+    // Duplicate detection key: Stream + Role + Name (case-insensitive)
+    function personKey(p){
+      return `${(p.stream||"").trim().toUpperCase()}|${(p.role||"").trim().toUpperCase()}|${(p.name||"").trim().toUpperCase()}`;
+    }
+
+    function findDuplicateIndex(p){
+      const key = personKey(p);
+      return people.findIndex(x => personKey(x) === key);
+    }
+
+    // ----------------------------
+    // Explanations
+    // ----------------------------
+    function personJustification(p){
+      const stream = (p.stream || "").trim().toUpperCase();
+      const role = (p.role || "").trim().toUpperCase();
+      const envs = normalizeEnvs(p.envs).join(", ");
+      const rolesByEnv = fabricRolesForPerson(p).join(" ; ");
+
+      if (stream === "CORP" && role === "ADMIN" && document.getElementById("ruleCorpAdminAllWs").checked){
+        return `Assigned because they are a central Fabric admin for CORP. They should hold Workspace Admin rights across workspaces in: ${envs}. Computed roles: ${rolesByEnv}. Membership should be tightly controlled and reviewed regularly.`;
+      }
+
+      if (role === "DE") return `Assigned because they are a Data Engineer for stream ${stream}. DEs build/maintain ingestion and transformation in: ${envs}. Computed roles: ${rolesByEnv}.`;
+      if (role === "BI") return `Assigned because they work in BI for stream ${stream}. They build models and reports. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
+      if (role === "AI") return `Assigned because they work on AI/ML for stream ${stream}. They typically need notebooks and curated data access in: ${envs}. Computed roles: ${rolesByEnv}.`;
+      if (role === "PM") return `Assigned because they are the Project Manager for stream ${stream}. PM access is visibility-focused. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
+      if (role === "ADMIN") return `Assigned because they perform administrative functions for ${stream}. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
+      return `Assigned because they serve role ${role} for stream ${stream}. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
+    }
+
+    function groupJustification(groups, p){
+      const stream = (p.stream || "").trim().toUpperCase();
+      const role = (p.role || "").trim().toUpperCase();
+      const envs = normalizeEnvs(p.envs).join(", ");
+
+      if (stream === "CORP" && role === "ADMIN" && document.getElementById("ruleCorpAdminAllWs").checked){
+        return `These groups represent central platform administration. Use group-based assignment for consistency and auditing. Environments: ${envs}.`;
+      }
+      return `These groups exist to standardize access by stream and role. One group per environment enables least privilege and prevents accidental PROD changes. Environments: ${envs}.`;
+    }
+
+    // ----------------------------
+    // UI functions
+    // ----------------------------
+    function setMode(mode){
+      const el = document.getElementById("modeBadge");
+      el.textContent = mode;
+      el.className = "badge " + (mode === "Edit" ? "text-bg-warning" : "text-bg-light border");
+    }
+
+    function updateGeneratedPreview(){
+      const stream = document.getElementById("inpStream").value || "STREAM";
+      const role = document.getElementById("inpRole").value || "ROLE";
+      const envs = getSelectedEnvsFromForm();
+
+      const override = (document.getElementById("inpOverrideGroups").value || "").trim();
+      const groups = override
+        ? override.split(/[;]+/).map(s => s.trim()).filter(Boolean)
+        : suggestGroups(stream, role, envs);
+
+      document.getElementById("generatedGroups").textContent = groups.join(" ; ");
+    }
+
+    function clearForm(){
+      selectedIndex = -1;
+      document.getElementById("selLabel").textContent = "None";
+      document.getElementById("btnDelete").disabled = true;
+      setMode("Add");
+
+      document.getElementById("inpStream").value = "";
+      document.getElementById("inpRole").value = "DE";
+      document.getElementById("inpName").value = "";
+      document.getElementById("inpOverrideGroups").value = "";
+
+      document.getElementById("envDEV").checked = true;
+      document.getElementById("envTEST").checked = false;
+      document.getElementById("envPROD").checked = false;
+
+      document.getElementById("exPerson").textContent = "None selected";
+      document.getElementById("exWhy").textContent = "";
+      document.getElementById("exGroups").textContent = "—";
+      document.getElementById("exGroupWhy").textContent = "";
+
+      updateGeneratedPreview();
+      renderTable();
+    }
+
+    function showToast(id){
+      const el = document.getElementById(id);
+      const toast = bootstrap.Toast.getOrCreateInstance(el, { delay: 2800 });
+      toast.show();
+    }
+
+    function savePerson(){
+      const stream = (document.getElementById("inpStream").value || "").trim().toUpperCase();
+      const role = (document.getElementById("inpRole").value || "").trim().toUpperCase();
+      const name = (document.getElementById("inpName").value || "").trim();
+      const envs = getSelectedEnvsFromForm();
+      const overrideGroups = (document.getElementById("inpOverrideGroups").value || "").trim();
+
+      // Basic validation
+      ["inpStream","inpName"].forEach(id => {
+        const el = document.getElementById(id);
+        if ((el.value || "").trim() === "") el.classList.add("is-invalid");
+        else el.classList.remove("is-invalid");
+      });
+      if (!stream || !name) return;
+
+      const person = { stream, role, name, envs, overrideGroups };
+
+      // Duplicate handling: if same Stream+Role+Name exists, update it
+      const dupIdx = findDuplicateIndex(person);
+      if (selectedIndex < 0 && dupIdx >= 0) {
+        people[dupIdx] = person;
+        selectedIndex = dupIdx;
+        showToast("toastDuplicate");
+      } else if (selectedIndex >= 0) {
+        people[selectedIndex] = person;
+      } else {
+        people.push(person);
+        selectedIndex = people.length - 1;
+      }
+
+      setMode("Edit");
+      document.getElementById("btnDelete").disabled = false;
+      document.getElementById("selLabel").textContent = person.name;
+
+      renderTable();
+      updateExplanationFor(person);
+    }
+
+    function deleteSelected(){
+      if (selectedIndex < 0) return;
+      people.splice(selectedIndex, 1);
+      clearForm();
+    }
+
+    function selectRow(idx){
+      selectedIndex = idx;
+      const p = people[idx];
+      setMode("Edit");
+      document.getElementById("btnDelete").disabled = false;
+      document.getElementById("selLabel").textContent = p.name;
+
+      document.getElementById("inpStream").value = p.stream;
+      document.getElementById("inpRole").value = p.role;
+      document.getElementById("inpName").value = p.name;
+      document.getElementById("inpOverrideGroups").value = p.overrideGroups || "";
+
+      const envs = normalizeEnvs(p.envs);
+      document.getElementById("envDEV").checked = envs.includes("DEV");
+      document.getElementById("envTEST").checked = envs.includes("TEST");
+      document.getElementById("envPROD").checked = envs.includes("PROD");
+
+      updateGeneratedPreview();
+      renderTable();
+      updateExplanationFor(p);
+    }
+
+    function renderTable(){
+      const tbody = document.querySelector("#tbl tbody");
+      tbody.innerHTML = "";
+      const q = (document.getElementById("search").value || "").toLowerCase();
+      document.getElementById("rowCount").textContent = String(people.length);
+
+      let visibleRowNum = 0;
+
+      people.forEach((p, idx) => {
+        const groups = getGroupsForPerson(p);
+        const roles = fabricRolesForPerson(p);
+        const searchable = `${p.stream} ${p.role} ${p.name} ${groups.join(" ")} ${roles.join(" ")}`.toLowerCase();
+        if (q && !searchable.includes(q)) return;
+
+        visibleRowNum += 1;
+
+        const tr = document.createElement("tr");
+        tr.classList.add("pointer");
+        if (idx === selectedIndex) tr.classList.add("table-primary");
+
+        tr.innerHTML = `
+          <td class="mono">${visibleRowNum}</td>
+          <td><span class="badge text-bg-light border">${escapeHtml(p.stream)}</span></td>
+          <td>${escapeHtml(p.role)}</td>
+          <td class="fw-semibold">${escapeHtml(p.name)}</td>
+          <td>${renderEnvBadges(p.envs)}</td>
+          <td><div class="d-flex flex-wrap gap-1">${renderGroupBadges(groups)}</div></td>
+          <td><div class="d-flex flex-wrap gap-1">${renderRoleBadges(roles)}</div></td>
+        `;
+        tr.addEventListener("click", () => selectRow(idx));
+        tbody.appendChild(tr);
+      });
+    }
+    function updateExplanationFor(p){
+      const envs = normalizeEnvs(p.envs).join(", ");
+      const groups = getGroupsForPerson(p);
+      const roles = fabricRolesForPerson(p);
+
+      document.getElementById("exPerson").textContent = `${p.name} • ${p.stream}/${p.role} • Envs: ${envs}`;
+      document.getElementById("exWhy").textContent = personJustification(p);
+      document.getElementById("exGroups").textContent = groups.join(" ; ");
+      document.getElementById("exGroupWhy").textContent = groupJustification(groups, p) + ` Fabric roles: ${roles.join(" ; ")}.`;
+
+      
+    }
+
+    // ----------------------------
+    // CSV import (UTF-8) + Drag&Drop
+    // ----------------------------
+    function stripBom(s){
+      if (!s) return s;
+      return s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s;
+    }
+
+    function parseCsv(text){
+      // Robust CSV parser with quoted fields support (commas inside quotes)
+      const rows = [];
+      let i = 0, field = "", row = [], inQuotes = false;
+      while (i < text.length){
+        const c = text[i];
+        if (inQuotes){
+          if (c === '"'){
+            if (text[i+1] === '"'){ field += '"'; i += 2; continue; }
+            inQuotes = false; i++; continue;
+          }
+          field += c; i++; continue;
+        } else {
+          if (c === '"'){ inQuotes = true; i++; continue; }
+          if (c === ','){ row.push(field); field = ""; i++; continue; }
+          if (c === '\r'){ i++; continue; }
+          if (c === '\n'){ row.push(field); rows.push(row); row = []; field = ""; i++; continue; }
+          field += c; i++; continue;
+        }
+      }
+      row.push(field);
+      if (row.some(x => (x || "").trim() !== "")) rows.push(row);
+      return rows;
+    }
+
+    function importCsvFile(file){
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = stripBom((reader.result || "").toString());
+        const grid = parseCsv(text);
+        if (grid.length < 2) return;
+
+        const headers = grid[0].map(h => (h || "").trim());
+        const headerMap = headers.reduce((m,h,idx) => (m[h.toLowerCase()] = idx, m), {});
+
+        const get = (r, keys) => {
+          for (const k of keys){
+            const idx = headerMap[k.toLowerCase()];
+            if (idx !== undefined) return r[idx] ?? "";
+          }
+          return "";
+        };
+
+        const imported = [];
+        for (let r = 1; r < grid.length; r++){
+          const row = grid[r];
+          const stream = (get(row, ["stream"]) || "").toString().trim().toUpperCase();
+          const role = (get(row, ["project role","role"]) || "").toString().trim().toUpperCase();
+          const name = (get(row, ["name","user"]) || "").toString().trim();
+          const envStr = (get(row, ["environments","environment","envs","env"]) || "").toString().trim();
+          const groupsStr = (get(row, ["security groups","security group","groups","group"]) || "").toString().trim();
+
+          if (!stream || !role || !name) continue;
+
+          const envs = envStr
+            ? normalizeEnvs(envStr.split(/[;,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean))
+            : ["DEV"];
+
+          const overrideGroups = groupsStr
+            ? groupsStr.split(/[;]+/).map(s => s.trim()).filter(Boolean).join("; ")
+            : "";
+
+          imported.push({ stream, role, name, envs, overrideGroups });
+        }
+
+        // Replace current list with imported data
+        people = imported;
+        clearForm();
+        showToast("toastImported");
+      };
+
+      reader.readAsText(file, "utf-8");
+    }
+
+    // ----------------------------
+    // Export CSV (stable)
+    // ----------------------------
+    function exportCsv(){
+      const header = ["Stream","Project Role","Name","Environments","Security Groups","Fabric Roles"];
+      const lines = [header.join(",")];
+
+      people.forEach(p => {
+        const envs = normalizeEnvs(p.envs).join(";");
+        const groups = getGroupsForPerson(p).join(";");
+        const roles = fabricRolesForPerson(p).join(";");
+
+        const row = [
+          (p.stream||"").replaceAll('"','""'),
+          (p.role||"").replaceAll('"','""'),
+          (p.name||"").replaceAll('"','""'),
+          envs.replaceAll('"','""'),
+          groups.replaceAll('"','""'),
+          roles.replaceAll('"','""'),
+        ].map(v => `"${v}"`).join(",");
+
+        lines.push(row);
+      });
+
+      const blob = new Blob([lines.join("\n")], {type:"text/csv;charset=utf-8;"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "fabric-security-mapping.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // ----------------------------
+    // Wire up
+    // ----------------------------
+    document.getElementById("btnSave").addEventListener("click", savePerson);
+    document.getElementById("btnClear").addEventListener("click", clearForm);
+    document.getElementById("btnDelete").addEventListener("click", deleteSelected);
+    document.getElementById("btnExportCsv").addEventListener("click", exportCsv);
+    document.getElementById("search").addEventListener("input", renderTable);
+
+    ["inpStream","inpRole","inpName","inpOverrideGroups","envDEV","envTEST","envPROD"].forEach(id => {
+      document.getElementById(id).addEventListener("input", updateGeneratedPreview);
+      document.getElementById(id).addEventListener("change", updateGeneratedPreview);
+    });
+
+    ["ruleProdViewerNonAdmin","ruleCorpAdminAllWs"].forEach(id => {
+      document.getElementById(id).addEventListener("change", () => {
+        renderTable();
+        if (selectedIndex >= 0) updateExplanationFor(people[selectedIndex]);
+        updateGeneratedPreview();
+      });
+    });
+
+    // File input
+    document.getElementById("fileCsv").addEventListener("change", (evt) => {
+      const file = evt.target.files && evt.target.files[0];
+      if (file) importCsvFile(file);
+    });
+
+    // Drag & drop
+    const dz = document.getElementById("dropzone");
+    dz.addEventListener("dragenter", (e) => { e.preventDefault(); dz.classList.add("dragover"); });
+    dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("dragover"); });
+    dz.addEventListener("dragleave", (e) => { e.preventDefault(); dz.classList.remove("dragover"); });
+    dz.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dz.classList.remove("dragover");
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) importCsvFile(file);
+    });
+
+    // Initial render
+    updateGeneratedPreview();
+    renderTable();
+  </script>
+</body>
+</html>
