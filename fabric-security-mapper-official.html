@@ -24,7 +24,7 @@
     .small-muted { font-size: .92rem; color: rgba(0,0,0,.60); }
     .pointer { cursor: pointer; }
     .table thead th { position: sticky; top: 0; background: rgba(255,255,255,.95); }
-    .table-responsive { max-height: 70vh; min-height: 560px; }
+    .table-responsive { max-height: 46vh; min-height: 280px; }
     .sticky-table-card { position: static; }
     @media (min-width: 992px) { .sticky-table-card { position: sticky; top: 1rem; z-index: 10; } }
     .advanced-toggle { list-style: none; }
@@ -203,7 +203,7 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
               <div>
                 <h5 class="fw-semibold mb-1"><i class="bi bi-table me-2"></i>People → Security Groups</h5>
-                <div class="small-muted">Click a row to edit.</div>
+                <div class="small-muted">Click a row to edit, or use the info button for full justification.</div>
               </div>
               <div class="input-group" style="max-width: 360px;">
                 <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
@@ -222,6 +222,7 @@
                     <th style="width: 16%;">Environments</th>
                     <th>Security Groups</th>
                     <th style="width: 18%;">Fabric Roles</th>
+                    <th style="width: 7%;">Info</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -307,6 +308,31 @@
             CSV loaded successfully.
           </div>
           <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Justification modal -->
+    <div class="modal fade" id="justificationModal" tabindex="-1" aria-labelledby="justificationModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5" id="justificationModalLabel">Person justification</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <div class="fw-semibold mb-1">Selected</div>
+              <div id="modalExPerson" class="mono">—</div>
+              <div id="modalExWhy" class="small-muted mt-2">—</div>
+            </div>
+            <div>
+              <div class="fw-semibold mb-1">Group justification</div>
+              <div id="modalExGroups" class="mono">—</div>
+              <div id="modalExGroupWhy" class="small-muted mt-2">—</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -588,8 +614,18 @@
           <td>${renderEnvBadges(p.envs)}</td>
           <td><div class="d-flex flex-wrap gap-1">${renderGroupBadges(p, groups)}</div></td>
           <td><div class="d-flex flex-wrap gap-1">${renderRoleBadges(roles)}</div></td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary justify-btn" type="button" title="Show justification">
+              <i class="bi bi-info-circle"></i>
+            </button>
+          </td>
         `;
         tr.addEventListener("click", () => selectRow(idx));
+        const justBtn = tr.querySelector(".justify-btn");
+        justBtn.addEventListener("click", (evt) => {
+          evt.stopPropagation();
+          showJustification(idx);
+        });
         tbody.appendChild(tr);
       });
     }
@@ -598,12 +634,30 @@
       const groups = getGroupsForPerson(p);
       const roles = fabricRolesForPerson(p);
 
-      document.getElementById("exPerson").textContent = `${p.name} • ${p.stream}/${p.role} • Envs: ${envs}`;
-      document.getElementById("exWhy").textContent = personJustification(p);
-      document.getElementById("exGroups").textContent = groups.join(" ; ");
-      document.getElementById("exGroupWhy").textContent = groupJustification(groups, p) + ` Fabric roles: ${roles.join(" ; ")}.`;
+      const personSummary = `${p.name} • ${p.stream}/${p.role} • Envs: ${envs}`;
+      const why = personJustification(p);
+      const groupSummary = groups.join(" ; ");
+      const groupWhy = groupJustification(groups, p) + ` Fabric roles: ${roles.join(" ; ")}.`;
 
-      
+      document.getElementById("exPerson").textContent = personSummary;
+      document.getElementById("exWhy").textContent = why;
+      document.getElementById("exGroups").textContent = groupSummary;
+      document.getElementById("exGroupWhy").textContent = groupWhy;
+
+      document.getElementById("modalExPerson").textContent = personSummary;
+      document.getElementById("modalExWhy").textContent = why;
+      document.getElementById("modalExGroups").textContent = groupSummary;
+      document.getElementById("modalExGroupWhy").textContent = groupWhy;
+
+      document.getElementById("justificationModalLabel").textContent = `Person justification: ${p.name}`;
+    }
+
+    function showJustification(idx){
+      const p = people[idx];
+      if (!p) return;
+      updateExplanationFor(p);
+      const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("justificationModal"));
+      modal.show();
     }
 
     // ----------------------------
