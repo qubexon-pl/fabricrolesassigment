@@ -40,6 +40,8 @@
       background: rgba(13,110,253,.08);
       transform: translateY(-1px);
     }
+    .rules-panel { font-size: .85rem; }
+    .rules-panel .fw-semibold { font-size: .95rem; }
   </style>
 </head>
 
@@ -144,25 +146,10 @@
                 <i class="bi bi-sliders me-2"></i>Advanced configuration
               </summary>
 
-              <div class="p-3 rounded-4 bg-white bg-opacity-50 border mt-3">
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                  <div>
-                    <div class="fw-semibold">Generated Security Groups</div>
-                    <div class="small-muted mono">SG-{STREAM}-{ROLE}-{ENV}</div>
-                  </div>
-                  <div class="mono text-primary" id="generatedGroups">—</div>
-                </div>
-                <hr class="my-3">
-                <label class="form-label fw-semibold">Advanced override groups</label>
-                <input id="inpOverrideGroups" class="form-control mono" placeholder="Optional. e.g. SG-IBP-DE-DEV; SG-IBP-DE-PROD">
-                <div class="form-text">
-                  If provided, overrides generated groups. Use semicolon-separated list. Useful for exceptions or legacy names.
-                </div>
-              </div>
-
               <h6 class="fw-semibold mt-3"><i class="bi bi-sliders me-2"></i>Rules</h6>
 
-              <div class="p-3 rounded-4 bg-white bg-opacity-50 border">
+
+              <div class="p-3 rounded-4 bg-white bg-opacity-50 border rules-panel">
                 <div class="fw-semibold mb-2">Rule: PROD is Viewer (non-admin)</div>
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" id="ruleProdViewerNonAdmin" checked>
@@ -172,13 +159,12 @@
                 </div>
               </div>
 
-              <div class="p-3 rounded-4 bg-white bg-opacity-50 border mt-3">
-                <div class="fw-semibold mb-2">Rule: CORP + ADMIN</div>
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="ruleCorpAdminAllWs" checked>
-                  <label class="form-check-label" for="ruleCorpAdminAllWs">
-                    Mark CORP ADMIN as <span class="fw-semibold">Admin (All)</span> per selected environment
-                  </label>
+
+              <div class="p-3 rounded-4 bg-white bg-opacity-50 border mt-3 rules-panel">
+                <div class="fw-semibold mb-2">Rule: CORP uses (All) roles</div>
+                <div class="small-muted mb-0">
+                  For <span class="mono">CORP</span> stream assignments, role mapping uses <span class="fw-semibold">(All)</span> for every role:
+                  PM → <span class="fw-semibold">Viewer (All)</span>, ADMIN → <span class="fw-semibold">Admin (All)</span>, other roles → <span class="fw-semibold">Contributor (All)</span>.
                 </div>
               </div>
             </details>
@@ -254,7 +240,7 @@
                     <li><span class="fw-semibold">Contributor (DEV/TEST)</span>: build and iterate (pipelines, notebooks, reports).</li>
                     <li><span class="fw-semibold">Viewer</span>: read-only access; used for Project Managers and PROD non-admin assignments.</li>
                     <li><span class="fw-semibold">Admin</span>: manage workspace settings and permissions (high risk; keep membership small).</li>
-                    <li><span class="fw-semibold">Admin (All)</span>: special case for <span class="mono">CORP + ADMIN</span> when enabled.</li>
+                    <li><span class="fw-semibold">(All) roles for CORP</span>: CORP assignments map to <span class="mono">Viewer (All)</span> for PM, <span class="mono">Admin (All)</span> for ADMIN, and <span class="mono">Contributor (All)</span> for other roles.</li>
                   </ul>
                 </div>
               </div>
@@ -351,12 +337,7 @@
       return e.map(x => `SG-${s}-${r}-${x}`);
     }
 
-    // Advanced overrides (semicolon-separated) override generated
     function getGroupsForPerson(p){
-      const override = (p.overrideGroups || "").trim();
-      if (override) {
-        return override.split(/[;]+/).map(s => s.trim()).filter(Boolean);
-      }
       return suggestGroups(p.stream, p.role, p.envs);
     }
 
@@ -371,12 +352,14 @@
       const role = (p.role || "").trim().toUpperCase();
       const envs = normalizeEnvs(p.envs);
       const prodViewerNonAdmin = document.getElementById("ruleProdViewerNonAdmin").checked;
-      const corpAdminAllWs = document.getElementById("ruleCorpAdminAllWs").checked;
       const stream = (p.stream || "").trim().toUpperCase();
 
-      if (corpAdminAllWs && stream === "CORP" && role === "ADMIN"){
-        return envs.map(e => `Admin (All) (${e})`);
+      if (stream === "CORP"){
+        if (role === "ADMIN") return envs.map(e => `Admin (All) (${e})`);
+        if (role === "PM") return envs.map(e => `Viewer (All) (${e})`);
+        return envs.map(e => `Contributor (All) (${e})`);
       }
+
 
       return envs.map(e => {
         if (prodViewerNonAdmin && e === "PROD" && role !== "ADMIN"){
@@ -418,7 +401,7 @@
       const envs = normalizeEnvs(p.envs).join(", ");
       const rolesByEnv = fabricRolesForPerson(p).join(" ; ");
 
-      if (stream === "CORP" && role === "ADMIN" && document.getElementById("ruleCorpAdminAllWs").checked){
+      if (stream === "CORP" && role === "ADMIN"){
         return `Assigned because consultant is a central Fabric admin for CORP. He/She should hold Workspace Admin rights across workspaces in: ${envs}. Computed roles: ${rolesByEnv}. Membership should be tightly controlled and reviewed regularly.`;
       }
 
@@ -435,7 +418,7 @@
       const role = (p.role || "").trim().toUpperCase();
       const envs = normalizeEnvs(p.envs).join(", ");
 
-      if (stream === "CORP" && role === "ADMIN" && document.getElementById("ruleCorpAdminAllWs").checked){
+      if (stream === "CORP" && role === "ADMIN"){
         return `These groups represent central platform administration. Use group-based assignment for consistency and auditing. Environments: ${envs}.`;
       }
       return `These groups exist to standardize access by stream and role. One group per environment enables least privilege and prevents accidental PROD changes. Environments: ${envs}.`;
@@ -450,18 +433,7 @@
       el.className = "badge " + (mode === "Edit" ? "text-bg-warning" : "text-bg-light border");
     }
 
-    function updateGeneratedPreview(){
-      const stream = document.getElementById("inpStream").value || "STREAM";
-      const role = document.getElementById("inpRole").value || "ROLE";
-      const envs = getSelectedEnvsFromForm();
 
-      const override = (document.getElementById("inpOverrideGroups").value || "").trim();
-      const groups = override
-        ? override.split(/[;]+/).map(s => s.trim()).filter(Boolean)
-        : suggestGroups(stream, role, envs);
-
-      document.getElementById("generatedGroups").textContent = groups.join(" ; ");
-    }
 
     function clearForm(){
       selectedIndex = -1;
@@ -472,13 +444,10 @@
       document.getElementById("inpStream").value = "";
       document.getElementById("inpRole").value = "DE";
       document.getElementById("inpName").value = "";
-      document.getElementById("inpOverrideGroups").value = "";
-
       document.getElementById("envDEV").checked = true;
       document.getElementById("envTEST").checked = false;
       document.getElementById("envPROD").checked = false;
 
-      updateGeneratedPreview();
       renderTable();
     }
 
@@ -493,7 +462,6 @@
       const role = (document.getElementById("inpRole").value || "").trim().toUpperCase();
       const name = (document.getElementById("inpName").value || "").trim();
       const envs = getSelectedEnvsFromForm();
-      const overrideGroups = (document.getElementById("inpOverrideGroups").value || "").trim();
 
       // Basic validation
       ["inpStream","inpName"].forEach(id => {
@@ -503,7 +471,8 @@
       });
       if (!stream || !name) return;
 
-      const person = { stream, role, name, envs, overrideGroups };
+
+      const person = { stream, role, name, envs };
 
       // Duplicate handling: if same Stream+Role+Name exists, update it
       const dupIdx = findDuplicateIndex(person);
@@ -542,14 +511,11 @@
       document.getElementById("inpStream").value = p.stream;
       document.getElementById("inpRole").value = p.role;
       document.getElementById("inpName").value = p.name;
-      document.getElementById("inpOverrideGroups").value = p.overrideGroups || "";
-
       const envs = normalizeEnvs(p.envs);
       document.getElementById("envDEV").checked = envs.includes("DEV");
       document.getElementById("envTEST").checked = envs.includes("TEST");
       document.getElementById("envPROD").checked = envs.includes("PROD");
 
-      updateGeneratedPreview();
       renderTable();
       updateExplanationFor(p);
     }
@@ -681,7 +647,6 @@
           const role = (get(row, ["project role","role"]) || "").toString().trim().toUpperCase();
           const name = (get(row, ["name","user"]) || "").toString().trim();
           const envStr = (get(row, ["environments","environment","envs","env"]) || "").toString().trim();
-          const groupsStr = (get(row, ["security groups","security group","groups","group"]) || "").toString().trim();
 
           if (!stream || !role || !name) continue;
 
@@ -689,11 +654,7 @@
             ? normalizeEnvs(envStr.split(/[;,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean))
             : ["DEV"];
 
-          const overrideGroups = groupsStr
-            ? groupsStr.split(/[;]+/).map(s => s.trim()).filter(Boolean).join("; ")
-            : "";
-
-          imported.push({ stream, role, name, envs, overrideGroups });
+          imported.push({ stream, role, name, envs });
         }
 
         // Replace current list with imported data
@@ -749,16 +710,10 @@
     document.getElementById("btnExportCsv").addEventListener("click", exportCsv);
     document.getElementById("search").addEventListener("input", renderTable);
 
-    ["inpStream","inpRole","inpName","inpOverrideGroups","envDEV","envTEST","envPROD"].forEach(id => {
-      document.getElementById(id).addEventListener("input", updateGeneratedPreview);
-      document.getElementById(id).addEventListener("change", updateGeneratedPreview);
-    });
-
-    ["ruleProdViewerNonAdmin","ruleCorpAdminAllWs"].forEach(id => {
+    ["ruleProdViewerNonAdmin"].forEach(id => {
       document.getElementById(id).addEventListener("change", () => {
         renderTable();
         if (selectedIndex >= 0) updateExplanationFor(people[selectedIndex]);
-        updateGeneratedPreview();
       });
     });
 
@@ -781,7 +736,6 @@
     });
 
     // Initial render
-    updateGeneratedPreview();
     renderTable();
   </script>
 </body>
