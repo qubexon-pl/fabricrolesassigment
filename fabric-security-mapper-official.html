@@ -243,6 +243,37 @@
                     <li><span class="fw-semibold">Viewer</span>: read-only consumption of content; no create/edit/publish permissions.</li>
                     <li><span class="fw-semibold">(All) roles for CORP</span>: CORP assignments map to <span class="mono">Viewer (All)</span> for PM, <span class="mono">Admin (All)</span> for ADMIN, and <span class="mono">Contributor (All)</span> for other roles.</li>
                   </ul>
+                  <div class="mt-3">
+                    <div class="fw-semibold mb-2">Microsoft Fabric workspace roles (quick reference)</div>
+                    <div class="table-responsive" style="height:auto; min-height: 0;">
+                      <table class="table table-sm table-bordered align-middle mb-2">
+                        <thead>
+                          <tr>
+                            <th>Role</th>
+                            <th>What this role can do</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td class="fw-semibold">Admin</td>
+                            <td>Manage workspace access/settings and fully administer all items, including high-impact operations.</td>
+                          </tr>
+                          <tr>
+                            <td class="fw-semibold">Member</td>
+                            <td>Create, publish, and update content collaboratively across the workspace, with limited admin actions.</td>
+                          </tr>
+                          <tr>
+                            <td class="fw-semibold">Contributor</td>
+                            <td>Build and edit assigned content (such as pipelines, notebooks, and reports) without full workspace administration.</td>
+                          </tr>
+                          <tr>
+                            <td class="fw-semibold">Viewer</td>
+                            <td>Read and consume shared content only; cannot create, edit, or publish items.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                   <div class="mt-2">
                     <span class="fw-semibold">Who can do what (quick guide):</span>
                     Admin &gt; Member &gt; Contributor &gt; Viewer, where each role keeps the permissions of the roles below it and adds more authoring/management capability.
