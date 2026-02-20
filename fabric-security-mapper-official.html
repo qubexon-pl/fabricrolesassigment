@@ -263,7 +263,7 @@
                 This app computes <span class="fw-semibold">workspace roles per environment</span> to guide Fabric workspace assignment:
                 <ul class="mb-0 mt-2">
                   <li><span class="fw-semibold">Contributor (DEV/TEST)</span>: build and iterate (pipelines, notebooks, reports).</li>
-                  <li><span class="fw-semibold">Viewer (PROD)</span>: read-only to reduce accidental production changes (non-admin).</li>
+                  <li><span class="fw-semibold">Viewer</span>: read-only access; used for Project Managers and PROD non-admin assignments.</li>
                   <li><span class="fw-semibold">Admin</span>: manage workspace settings and permissions (high risk; keep membership small).</li>
                   <li><span class="fw-semibold">Admin (All workspaces)</span>: special case for <span class="mono">CORP + ADMIN</span> when enabled.</li>
                 </ul>
@@ -348,7 +348,7 @@
 
     function baseWorkspaceRole(role){
       if (role === "ADMIN") return "Admin";
-      if (role === "PM") return "Member";
+      if (role === "PM") return "Viewer";
       return "Contributor";
     }
 
@@ -411,7 +411,7 @@
       if (role === "DE") return `Assigned because they are a Data Engineer for stream ${stream}. DEs build/maintain ingestion and transformation in: ${envs}. Computed roles: ${rolesByEnv}.`;
       if (role === "BI") return `Assigned because they work in BI for stream ${stream}. They build models and reports. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
       if (role === "AI") return `Assigned because they work on AI/ML for stream ${stream}. They typically need notebooks and curated data access in: ${envs}. Computed roles: ${rolesByEnv}.`;
-      if (role === "PM") return `Assigned because they are the Project Manager for stream ${stream}. PM access is visibility-focused. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
+      if (role === "PM") return `Assigned because they are the Project Manager for stream ${stream}. PM access is strictly view-only and does not include artifact manipulation. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
       if (role === "ADMIN") return `Assigned because they perform administrative functions for ${stream}. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
       return `Assigned because they serve role ${role} for stream ${stream}. Envs: ${envs}. Computed roles: ${rolesByEnv}.`;
     }
