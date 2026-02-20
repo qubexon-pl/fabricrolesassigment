@@ -237,11 +237,16 @@
                 <div class="small-muted">
                   This app computes <span class="fw-semibold">workspace roles per environment</span> to guide Fabric workspace assignment:
                   <ul class="mb-0 mt-2">
+                    <li><span class="fw-semibold">Admin</span>: full control (manage access, workspace settings, and all content, including delete/restore actions).</li>
+                    <li><span class="fw-semibold">Member</span>: collaborate and publish/update content broadly, but without full workspace administration rights.</li>
                     <li><span class="fw-semibold">Contributor (DEV/TEST)</span>: build and iterate (pipelines, notebooks, reports).</li>
-                    <li><span class="fw-semibold">Viewer</span>: read-only access; used for Project Managers and PROD non-admin assignments.</li>
-                    <li><span class="fw-semibold">Admin</span>: manage workspace settings and permissions (high risk; keep membership small).</li>
+                    <li><span class="fw-semibold">Viewer</span>: read-only consumption of content; no create/edit/publish permissions.</li>
                     <li><span class="fw-semibold">(All) roles for CORP</span>: CORP assignments map to <span class="mono">Viewer (All)</span> for PM, <span class="mono">Admin (All)</span> for ADMIN, and <span class="mono">Contributor (All)</span> for other roles.</li>
                   </ul>
+                  <div class="mt-2">
+                    <span class="fw-semibold">Who can do what (quick guide):</span>
+                    Admin &gt; Member &gt; Contributor &gt; Viewer, where each role keeps the permissions of the roles below it and adds more authoring/management capability.
+                  </div>
                 </div>
               </div>
             </details>
