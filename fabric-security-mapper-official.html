@@ -72,6 +72,18 @@
             </div>
             <div class="small-muted mb-3">Fill Stream, Project Role, Name, environments. Groups and Fabric roles are computed per environment.</div>
 
+            <div class="d-flex gap-2 mb-3">
+              <button class="btn btn-primary rounded-2 px-3" id="btnSave" title="Save" aria-label="Save">
+                <i class="bi bi-check2-circle"></i>
+              </button>
+              <button class="btn btn-outline-secondary rounded-2 px-3" id="btnClear" title="Clear" aria-label="Clear">
+                <i class="bi bi-x-circle"></i>
+              </button>
+              <button class="btn btn-outline-danger rounded-2 px-3" id="btnDelete" title="Delete" aria-label="Delete" disabled>
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
+
             <div class="row g-3">
               <div class="col-12">
                 <label class="form-label fw-semibold">Stream</label>
@@ -112,11 +124,6 @@
                 <div class="form-text">Select where this person should have access.</div>
               </div>
 
-              <div class="col-12 d-grid gap-2">
-                <button class="btn btn-primary" id="btnSave"><i class="bi bi-check2-circle me-1"></i>Save</button>
-                <button class="btn btn-outline-secondary" id="btnClear"><i class="bi bi-x-circle me-1"></i>Clear</button>
-                <button class="btn btn-outline-danger" id="btnDelete" disabled><i class="bi bi-trash3 me-1"></i>Delete selected</button>
-              </div>
             </div>
 
             <hr class="my-4">
@@ -179,7 +186,7 @@
                 <div class="form-check form-switch">
                   <input class="form-check-input" type="checkbox" id="ruleCorpAdminAllWs" checked>
                   <label class="form-check-label" for="ruleCorpAdminAllWs">
-                    Mark CORP ADMIN as <span class="fw-semibold">Admin (All workspaces)</span> per selected environment
+                    Mark CORP ADMIN as <span class="fw-semibold">Admin (All)</span> per selected environment
                   </label>
                 </div>
               </div>
@@ -273,7 +280,7 @@
                   <li><span class="fw-semibold">Contributor (DEV/TEST)</span>: build and iterate (pipelines, notebooks, reports).</li>
                   <li><span class="fw-semibold">Viewer</span>: read-only access; used for Project Managers and PROD non-admin assignments.</li>
                   <li><span class="fw-semibold">Admin</span>: manage workspace settings and permissions (high risk; keep membership small).</li>
-                  <li><span class="fw-semibold">Admin (All workspaces)</span>: special case for <span class="mono">CORP + ADMIN</span> when enabled.</li>
+                  <li><span class="fw-semibold">Admin (All)</span>: special case for <span class="mono">CORP + ADMIN</span> when enabled.</li>
                 </ul>
               </div>
             </div>
@@ -369,7 +376,7 @@
       const stream = (p.stream || "").trim().toUpperCase();
 
       if (corpAdminAllWs && stream === "CORP" && role === "ADMIN"){
-        return envs.map(e => `Admin (All workspaces) (${e})`);
+        return envs.map(e => `Admin (All) (${e})`);
       }
 
       return envs.map(e => {
@@ -386,9 +393,7 @@
     }
 
     function renderGroupBadges(person, groups){
-      const isCorpStream = ((person?.stream || "").trim().toUpperCase() === "CORP");
-      const groupSuffix = isCorpStream ? " (All Workspaces)" : "";
-      return groups.map(g => `<span class="badge rounded-pill badge-soft mono">${escapeHtml(g)}${groupSuffix}</span>`).join(" ");
+      return groups.map(g => `<span class="badge rounded-pill badge-soft mono">${escapeHtml(g)}</span>`).join(" ");
     }
 
     function renderRoleBadges(roles){
