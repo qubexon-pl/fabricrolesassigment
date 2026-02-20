@@ -24,7 +24,7 @@
     .small-muted { font-size: .92rem; color: rgba(0,0,0,.60); }
     .pointer { cursor: pointer; }
     .table thead th { position: sticky; top: 0; background: rgba(255,255,255,.95); }
-    .table-responsive { max-height: 460px; }
+    .table-responsive { max-height: 70vh; min-height: 560px; }
     .dropzone {
       border: 2px dashed rgba(13,110,253,.35);
       background: rgba(13,110,253,.04);
@@ -377,8 +377,10 @@
       return normalizeEnvs(envs).map(e => `<span class="badge text-bg-light border mono">${e}</span>`).join("");
     }
 
-    function renderGroupBadges(groups){
-      return groups.map(g => `<span class="badge rounded-pill badge-soft mono">${escapeHtml(g)}</span>`).join(" ");
+    function renderGroupBadges(person, groups){
+      const isCorpStream = ((person?.stream || "").trim().toUpperCase() === "CORP");
+      const groupSuffix = isCorpStream ? " (All Workspaces)" : "";
+      return groups.map(g => `<span class="badge rounded-pill badge-soft mono">${escapeHtml(g)}${groupSuffix}</span>`).join(" ");
     }
 
     function renderRoleBadges(roles){
@@ -571,7 +573,7 @@
           <td>${escapeHtml(p.role)}</td>
           <td class="fw-semibold">${escapeHtml(p.name)}</td>
           <td>${renderEnvBadges(p.envs)}</td>
-          <td><div class="d-flex flex-wrap gap-1">${renderGroupBadges(groups)}</div></td>
+          <td><div class="d-flex flex-wrap gap-1">${renderGroupBadges(p, groups)}</div></td>
           <td><div class="d-flex flex-wrap gap-1">${renderRoleBadges(roles)}</div></td>
         `;
         tr.addEventListener("click", () => selectRow(idx));
